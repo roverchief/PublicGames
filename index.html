@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1b1a3a">
+<title>The Wizard's Tower</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#1b1a3a;touch-action:manipulation;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:#fff}
+body{background:radial-gradient(ellipse at 50% 0%,#3a2f7a 0%,#1b1a3a 60%,#12112a 100%) fixed;
+  min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px)}
+button{font:inherit;color:#fff;border:0;border-radius:999px;background:rgba(255,255,255,.14);padding:10px 22px;font-size:16px;cursor:pointer}
+button:active{background:rgba(255,255,255,.28)}
+#hud{width:100%;max-width:420px;display:flex;align-items:center;justify-content:space-between}
+#pips{display:flex;gap:10px}
+.pip{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);transition:all .4s}
+.pip.now{border-color:#ffd23f;box-shadow:0 0 10px rgba(255,210,63,.8)}
+.pip.done{background:#ffd23f;border-color:#ffd23f}
+#mute{padding:6px 12px;font-size:18px;background:rgba(255,255,255,.1)}
+#mute.off{opacity:.4;text-decoration:line-through}
+h1{margin:14px 0 4px;text-align:center;font-size:clamp(22px,6.5vw,32px);text-shadow:0 2px 12px rgba(255,170,40,.5)}
+#sub{margin:0 0 10px;text-align:center;max-width:380px;font-size:clamp(14px,4vw,16px);opacity:.85;min-height:2.6em}
+#stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;max-width:420px}
+#controls{display:flex;gap:10px;padding-top:14px;flex-wrap:wrap;justify-content:center}
+
+/* level 1: potions */
+.tubes{display:flex;flex-wrap:wrap;gap:26px 18px;justify-content:center;max-width:270px;--seg:40px;padding-top:16px}
+.tube{width:62px;height:calc(var(--seg)*4 + 8px);border:3px solid rgba(255,255,255,.55);border-top:none;border-radius:4px 4px 30px 30px;
+  padding:0 3px 4px;display:flex;flex-direction:column-reverse;background:rgba(255,255,255,.07);cursor:pointer;transition:transform .15s,box-shadow .2s}
+.tube.sel{transform:translateY(-16px);border-color:#ffd23f;box-shadow:0 0 18px rgba(255,210,63,.6)}
+.tube.done{border-color:#7be07b;box-shadow:0 0 14px rgba(123,224,123,.5)}
+.seg{height:var(--seg);display:flex;align-items:center;justify-content:center;font-size:16px;color:rgba(0,0,0,.35)}
+.seg:first-child{border-radius:2px 2px 24px 24px}
+
+/* level 2: runes */
+.runes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:min(82vw,340px)}
+.rune{aspect-ratio:1;border-radius:16px;border:2px solid rgba(255,255,255,.2);background:#2a2858;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .25s,box-shadow .25s}
+.rune svg{width:60%;height:60%;stroke:#6e6aa8;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;transition:stroke .25s}
+.rune.on{background:radial-gradient(circle,#ffe68a,#ff9a3c);border-color:#ffe68a;box-shadow:0 0 18px rgba(255,170,40,.7)}
+.rune.on svg{stroke:#5a2a00}
+.rune.hint{animation:pulse .6s ease-in-out 3}
+@keyframes pulse{50%{transform:scale(1.14);border-color:#fff}}
+
+/* level 3: riddles */
+#door{width:min(44vw,170px);height:auto;display:block;margin:0 auto 6px}
+#door .panel{transition:transform 1s ease-in}
+#door.open #pl{transform:translateX(-38px)}
+#door.open #pr{transform:translateX(38px)}
+#door.open #glow{opacity:1}
+#glow{opacity:.25;transition:opacity 1s}
+.riddle{margin:0 0 14px;text-align:center;font-size:clamp(16px,4.6vw,19px);line-height:1.4;max-width:360px}
+.riddle small{display:block;opacity:.65;margin-bottom:4px;letter-spacing:1px;text-transform:uppercase;font-size:12px}
+.slots{display:flex;gap:6px;justify-content:center;margin-bottom:16px;min-height:42px}
+.slot{width:clamp(26px,9.5vw,38px);height:42px;border-bottom:3px solid #ffd23f;font-size:26px;font-weight:700;text-align:center;line-height:40px;cursor:pointer}
+.slot.locked{color:#7be7ff;cursor:default}
+.slot.ok{color:#7be07b;border-color:#7be07b}
+.slots.shake{animation:shake .45s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.tiles{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:340px}
+.tile{width:44px;height:44px;border-radius:12px;background:#3a2f7a;border:2px solid rgba(255,255,255,.35);font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.tile.used{opacity:.18;pointer-events:none}
+
+/* cards */
+#card{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,8,30,.6);opacity:0;pointer-events:none;transition:opacity .5s;z-index:5}
+#card.show{opacity:1;pointer-events:auto}
+#cardbox{background:#17153a;border:2px solid rgba(255,200,90,.7);border-radius:28px;padding:26px 22px;margin:0 20px;max-width:360px;text-align:center;
+  box-shadow:0 0 40px rgba(255,170,40,.45);transform:scale(.6);transition:transform .5s cubic-bezier(.2,1.6,.4,1)}
+#card.show #cardbox{transform:scale(1)}
+#cardbox svg{width:min(50vw,190px);height:auto;display:block;margin:0 auto 6px}
+#cardbox h2{margin:6px 0 10px;font-size:clamp(26px,8vw,38px);line-height:1.15;
+  background:linear-gradient(90deg,#ffd23f,#ff6fa5,#4cc3ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+#cardbox p{margin:0 0 18px;font-size:16px;line-height:1.45;opacity:.9}
+#cardbtn{background:linear-gradient(90deg,#ff9a3c,#ff6fa5);font-weight:700;font-size:18px;padding:12px 28px}
+.conf{position:fixed;top:-20px;width:10px;height:14px;border-radius:2px;animation:fall linear forwards;z-index:6;pointer-events:none}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+</style>
+</head>
+<body>
+<div id="hud"><div id="pips"><span class="pip"></span><span class="pip"></span><span class="pip"></span></div><button id="mute" aria-label="Sound">♪</button></div>
+<h1 id="title"></h1>
+<p id="sub"></p>
+<div id="stage"></div>
+<div id="controls"></div>
+<div id="card"><div id="cardbox"></div></div>
+
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s);
+const rnd=n=>Math.floor(Math.random()*n);
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
+const h=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e;};
+const stage=$('#stage'),titleEl=$('#title'),subEl=$('#sub'),ctrl=$('#controls'),card=$('#card'),cardBox=$('#cardbox');
+const pips=[...document.querySelectorAll('.pip')];
+let level=0,muted=false,actx=null,keyHandler=null;
+
+/* ---------- sound ---------- */
+function tone(f,d=.12,type='sine',when=0,vol=.08){
+  if(muted)return;
+  try{
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    const t=actx.currentTime+when,o=actx.createOscillator(),g=actx.createGain();
+    o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d);
+  }catch(e){}
+}
+const sfx={
+  tap:()=>tone(520,.08),
+  pour:()=>tone(330,.15,'triangle'),
+  bad:()=>tone(160,.25,'sawtooth'),
+  good:()=>[523,659,784].forEach((f,i)=>tone(f,.25,'sine',i*.1)),
+  win:()=>[523,659,784,1047,1319].forEach((f,i)=>tone(f,.35,'triangle',i*.12))
+};
+$('#mute').onclick=e=>{muted=!muted;e.currentTarget.classList.toggle('off',muted);};
+addEventListener('keydown',e=>{if(keyHandler)keyHandler(e);});
+
+/* ---------- cards & flow ---------- */
+function showCard({svg='',head,text,btn,fn}){
+  cardBox.innerHTML=svg;
+  cardBox.appendChild(h('h2','',head));
+  cardBox.appendChild(h('p','',text));
+  const b=h('button','',btn);b.id='cardbtn';
+  b.onclick=()=>{card.classList.remove('show');sfx.tap();setTimeout(fn,350);};
+  cardBox.appendChild(b);
+  card.classList.add('show');
+}
+function confetti(){
+  const cols=['#ffd23f','#ff6fa5','#4cc3ff','#7be07b','#ff9a3c'];
+  for(let i=0;i<46;i++){
+    const c=h('i','conf');
+    c.style.left=rnd(100)+'vw';c.style.background=cols[rnd(cols.length)];
+    c.style.animationDuration=(2.5+Math.random()*2.5)+'s';c.style.animationDelay=(Math.random()*1.2)+'s';
+    document.body.appendChild(c);setTimeout(()=>c.remove(),7000);
+  }
+}
+const HAT=`<svg viewBox="0 0 200 180" role="img" aria-label="Wizard hat">
+<ellipse cx="100" cy="152" rx="88" ry="15" fill="#3a2f7a"/>
+<path d="M50 150Q68 92 92 24Q104 10 112 28Q132 92 150 150Q100 164 50 150z" fill="#5547c9"/>
+<path d="M56 132Q100 146 144 132L150 150Q100 164 50 150z" fill="#ffd23f"/>
+<polygon points="100,70 105,84 120,85 108,94 112,108 100,100 88,108 92,94 80,85 95,84" fill="#ffd23f"/>
+<circle cx="64" cy="60" r="3" fill="#fff" opacity=".7"/><circle cx="140" cy="86" r="2.5" fill="#fff" opacity=".7"/><circle cx="118" cy="44" r="2" fill="#fff" opacity=".7"/>
+</svg>`;
+const KEY=`<svg viewBox="0 0 200 120" role="img" aria-label="Golden key">
+<circle cx="52" cy="60" r="34" fill="none" stroke="#ffd23f" stroke-width="14"/>
+<path d="M84 60H186M150 60v26M174 60v20" stroke="#ffd23f" stroke-width="14" stroke-linecap="round" fill="none"/>
+</svg>`;
+
+function startLevel(n){
+  level=n;keyHandler=null;stage.textContent='';ctrl.textContent='';
+  pips.forEach((p,i)=>p.className='pip'+(i<n?' done':i===n?' now':''));
+  const L=LEVELS[n];titleEl.textContent=L.title;subEl.textContent=L.sub;L.start();
+}
+function complete(){
+  keyHandler=null;pips[level].className='pip done';
+  if(level<2){
+    sfx.good();
+    showCard({svg:KEY,head:`Trial ${level+1} passed!`,text:level===0?'The cellar door swings open. Up the stairs you go!':'The lock clicks and the rune door slides away. One trial left!',btn:'Next trial',fn:()=>startLevel(level+1)});
+  }else{
+    sfx.win();confetti();
+    showCard({svg:HAT,head:'You did it!',text:'The Tower is free and the golden hat is yours. You are a Master Wizard!',btn:'Play again',fn:()=>startLevel(0)});
+  }
+}
+function btn(label,fn){const b=h('button','',label);b.onclick=fn;ctrl.appendChild(b);return b;}
+
+/* ---------- level 1: potions ---------- */
+const COLS=[{c:'#e5484d',g:'●'},{c:'#3e8ef7',g:'▲'},{c:'#3fbf6a',g:'■'},{c:'#f5c542',g:'★'}];
+const CAP=4;
+const canPour=(a,b)=>a.length>0&&b.length<CAP&&(!b.length||b[b.length-1]===a[a.length-1]);
+function pour(tubes,i,j){const a=tubes[i],b=tubes[j],c=a[a.length-1];while(a.length&&a[a.length-1]===c&&b.length<CAP)b.push(a.pop());}
+const isFull=t=>t.length===CAP&&t.every(x=>x===t[0]);
+const isSolved=ts=>ts.every(t=>!t.length||isFull(t));
+function solvable(start){
+  const key=t=>t.map(x=>x.join('')).sort().join('|');
+  const seen=new Set([key(start)]),stack=[start];let n=0;
+  while(stack.length&&n++<100000){
+    const s=stack.pop();
+    if(isSolved(s))return true;
+    for(let i=0;i<s.length;i++)for(let j=0;j<s.length;j++){
+      if(i===j||!canPour(s[i],s[j]))continue;
+      if(!s[j].length&&s[i].every(x=>x===s[i][0]))continue;
+      const nx=s.map(t=>t.slice());pour(nx,i,j);
+      const k=key(nx);if(!seen.has(k)){seen.add(k);stack.push(nx);}
+    }
+  }
+  return false;
+}
+function genPotions(){
+  for(;;){
+    const pool=[];
+    for(let c=0;c<COLS.length;c++)for(let k=0;k<CAP;k++)pool.push(c);
+    shuffle(pool);
+    const tubes=COLS.map((_,i)=>pool.slice(i*CAP,(i+1)*CAP));
+    tubes.push([],[]);
+    if(tubes.some(isFull))continue;
+    if(solvable(tubes))return tubes;
+  }
+}
+function potions(){
+  const init=genPotions();
+  let tubes=JSON.parse(JSON.stringify(init)),sel=null,hist=[],over=false;
+  const wrap=h('div','tubes');stage.appendChild(wrap);
+  function draw(){
+    wrap.textContent='';
+    tubes.forEach((t,i)=>{
+      const d=h('div','tube'+(sel===i?' sel':'')+(isFull(t)?' done':''));
+      t.forEach(c=>{const s=h('div','seg',COLS[c].g);s.style.background=COLS[c].c;d.appendChild(s);});
+      d.onclick=()=>tap(i);wrap.appendChild(d);
+    });
+  }
+  function tap(i){
+    if(over)return;
+    if(sel===null){if(tubes[i].length){sel=i;sfx.tap();}}
+    else if(sel===i){sel=null;}
+    else if(canPour(tubes[sel],tubes[i])){
+      hist.push(JSON.stringify(tubes));pour(tubes,sel,i);sel=null;sfx.pour();draw();
+      if(isSolved(tubes)){over=true;setTimeout(complete,700);}
+      return;
+    }else if(tubes[i].length){sel=i;sfx.tap();}
+    else{sel=null;sfx.bad();}
+    draw();
+  }
+  btn('Undo',()=>{if(over||!hist.length)return;tubes=JSON.parse(hist.pop());sel=null;draw();});
+  btn('Start over',()=>{if(over)return;tubes=JSON.parse(JSON.stringify(init));hist=[];sel=null;draw();});
+  draw();
+}
+
+/* ---------- level 2: runes ---------- */
+const RN=4;
+const GLYPHS=['M12 3v18M12 8l6-4M12 13l6-4','M7 3v18M7 3l9 6-9 6','M17 4L6 12l11 8','M12 21V3M6 9l6-6 6 6','M7 3v18M17 3v18M7 8l10 8','M12 3l7 9-7 9-7-9z'];
+function flip(b,i){
+  const x=i%RN,y=(i/RN)|0;
+  [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+    const nx=x+dx,ny=y+dy;
+    if(nx>=0&&nx<RN&&ny>=0&&ny<RN)b[ny*RN+nx]=!b[ny*RN+nx];
+  });
+}
+function genRunes(){
+  for(;;){
+    const sol=shuffle([...Array(RN*RN).keys()]).slice(0,5);
+    const board=Array(RN*RN).fill(true);
+    sol.forEach(i=>flip(board,i));
+    if(board.filter(x=>!x).length>=4)return{board,sol};
+  }
+}
+function runes(){
+  const g=genRunes(),board=g.board,need=new Set(g.sol);
+  let over=false,hint=-1;
+  const grid=h('div','runes');stage.appendChild(grid);
+  function draw(){
+    grid.textContent='';
+    board.forEach((on,i)=>{
+      const d=h('div','rune'+(on?' on':'')+(hint===i?' hint':''));
+      d.innerHTML=`<svg viewBox="0 0 24 24"><path d="${GLYPHS[(i*5+(i>>2))%GLYPHS.length]}"/></svg>`;
+      d.onclick=()=>press(i);grid.appendChild(d);
+    });
+  }
+  function press(i){
+    if(over)return;
+    flip(board,i);hint=-1;
+    if(need.has(i))need.delete(i);else need.add(i);
+    sfx.tap();draw();
+    if(board.every(Boolean)){over=true;setTimeout(complete,700);}
+  }
+  btn('Hint',()=>{
+    if(over||!need.size)return;
+    hint=[...need][0];draw();
+  });
+  draw();
+}
+
+/* ---------- level 3: riddles ---------- */
+const RIDDLES=[
+  {q:'I have scales and wings, I breathe fire, and I sleep on a pile of gold. What am I?',a:'DRAGON'},
+  {q:'I have a mouth but never speak, and a bed but never sleep. What am I?',a:'RIVER'},
+  {q:'The more of me there is, the less you can see. What am I?',a:'DARKNESS'}
+];
+const DOOR=`<svg id="door" viewBox="0 0 120 124" role="img" aria-label="Magic door">
+<defs><radialGradient id="gl"><stop offset="0" stop-color="#fff3b0"/><stop offset="1" stop-color="#ff9a3c"/></radialGradient>
+<clipPath id="arch"><path d="M24 118V54a36 36 0 0 1 72 0v64z"/></clipPath></defs>
+<path d="M16 118V52a44 44 0 0 1 88 0v66z" fill="#2a2858" stroke="#8e89d6" stroke-width="3"/>
+<g clip-path="url(#arch)">
+<rect id="glow" x="24" y="10" width="72" height="108" fill="url(#gl)"/>
+<g id="pl" class="panel"><path d="M24 118V54a36 36 0 0 1 36-36v100z" fill="#5b3a1e" stroke="#2d1a0a" stroke-width="2"/></g>
+<g id="pr" class="panel"><path d="M96 118V54a36 36 0 0 0-36-36v100z" fill="#6b4524" stroke="#2d1a0a" stroke-width="2"/></g>
+</g>
+<g stroke="#2d1a0a" stroke-width="1.5"><circle id="g0" cx="42" cy="46" r="6" fill="#444"/><circle id="g1" cx="60" cy="38" r="6" fill="#444"/><circle id="g2" cx="78" cy="46" r="6" fill="#444"/></g>
+</svg>`;
+function riddles(){
+  let r=0,slots,tiles,busy=false;
+  const holder=h('div');holder.innerHTML=DOOR;stage.appendChild(holder);
+  const door=holder.firstChild;
+  const q=h('p','riddle'),sl=h('div','slots'),tl=h('div','tiles');
+  stage.append(q,sl,tl);
+  function load(){
+    const a=RIDDLES[r].a;
+    slots=Array(a.length).fill(null);
+    const extras=shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter(c=>!a.includes(c))).slice(0,3);
+    tiles=shuffle([...a.split(''),...extras]).map((ch,id)=>({ch,id,used:false}));
+    draw();
+  }
+  function draw(){
+    q.innerHTML='';q.append(h('small','',`Riddle ${r+1} of 3`),RIDDLES[r].q);
+    sl.textContent='';tl.textContent='';
+    slots.forEach((s,p)=>{
+      const d=h('div','slot'+(s&&s.locked?' locked':'')+(s&&s.ok?' ok':''),s?tiles[s.id].ch:'');
+      d.onclick=()=>remove(p);sl.appendChild(d);
+    });
+    tiles.forEach(t=>{
+      const d=h('div','tile'+(t.used?' used':''),t.ch);
+      d.onclick=()=>place(t.id);tl.appendChild(d);
+    });
+    gems();
+  }
+  function gems(){for(let i=0;i<3;i++)door.querySelector('#g'+i).setAttribute('fill',i<r?'#ffd23f':'#444');}
+  function place(id){
+    const p=slots.findIndex(s=>!s);
+    if(busy||p<0||tiles[id].used)return;
+    slots[p]={id,locked:false};tiles[id].used=true;sfx.tap();draw();
+    if(slots.every(Boolean))check();
+  }
+  function remove(p){
+    const s=slots[p];
+    if(busy||!s||s.locked)return;
+    tiles[s.id].used=false;slots[p]=null;sfx.tap();draw();
+  }
+  function check(){
+    const a=RIDDLES[r].a;
+    busy=true;
+    if(slots.map(s=>tiles[s.id].ch).join('')===a){
+      sfx.good();slots.forEach(s=>s.ok=true);draw();
+      setTimeout(()=>{
+        r++;
+        if(r===3){gems();door.classList.add('open');setTimeout(complete,1400);}
+        else{load();busy=false;}
+      },900);
+    }else{
+      sfx.bad();sl.classList.add('shake');
+      setTimeout(()=>{
+        sl.classList.remove('shake');
+        slots.forEach((s,p)=>{if(s&&!s.locked){tiles[s.id].used=false;slots[p]=null;}});
+        busy=false;draw();
+      },550);
+    }
+  }
+  function hintFn(){
+    if(busy)return;
+    const a=RIDDLES[r].a;
+    const p=slots.findIndex((s,i)=>!s||tiles[s.id].ch!==a[i]);
+    if(p<0)return;
+    if(slots[p]){tiles[slots[p].id].used=false;slots[p]=null;}
+    let t=tiles.find(t=>!t.used&&t.ch===a[p]);
+    if(!t){
+      const q2=slots.findIndex(s=>s&&tiles[s.id].ch===a[p]&&!s.locked);
+      t=tiles[slots[q2].id];tiles[t.id].used=false;slots[q2]=null;
+    }
+    slots[p]={id:t.id,locked:true};t.used=true;sfx.tap();draw();
+    if(slots.every(Boolean))check();
+  }
+  btn('Hint',hintFn);
+  btn('Clear',()=>{
+    if(busy)return;
+    slots.forEach((s,p)=>{if(s&&!s.locked){tiles[s.id].used=false;slots[p]=null;}});draw();
+  });
+  keyHandler=e=>{
+    if(busy)return;
+    if(e.key==='Backspace'){for(let p=slots.length-1;p>=0;p--)if(slots[p]&&!slots[p].locked){remove(p);break;}}
+    else if(/^[a-z]$/i.test(e.key)){const t=tiles.find(t=>!t.used&&t.ch===e.key.toUpperCase());if(t)place(t.id);}
+  };
+  load();
+}
+
+/* ---------- levels ---------- */
+const LEVELS=[
+  {title:'Trial 1: The Potion Cellar',sub:'Sort the potions so every flask holds just one colour. Tap a flask, then tap where to pour.',start:potions},
+  {title:'Trial 2: The Rune Lock',sub:'Tap a rune to flip it and the runes next to it. Make every rune glow to open the lock.',start:runes},
+  {title:'Trial 3: The Riddle Gate',sub:'Answer the three riddles with the letter stones to break the seals.',start:riddles}
+];
+
+showCard({svg:HAT,head:"The Wizard's Tower",text:'The old wizard has vanished and his Tower is sealed by three magical trials. Solve them all to reach the top!',btn:'Begin',fn:()=>startLevel(0)});
+})();
+</script>
+</body>
+</html>
