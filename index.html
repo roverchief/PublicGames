@@ -66,6 +66,38 @@ h1{margin:14px 0 4px;text-align:center;font-size:clamp(22px,6.5vw,32px);text-sha
 .tile{width:44px;height:44px;border-radius:12px;background:#3a2f7a;border:2px solid rgba(255,255,255,.35);font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .tile.used{opacity:.18;pointer-events:none}
 
+/* slide puzzle */
+.slide{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:min(80vw,300px);aspect-ratio:1}
+.stone{border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:clamp(28px,9vw,40px);font-weight:800;color:#2a1a00;cursor:pointer;
+  background:linear-gradient(145deg,#ffe68a,#ff9a3c);border:2px solid #ffe68a;box-shadow:0 0 12px rgba(255,170,40,.4)}
+.stone.gap{background:rgba(255,255,255,.05);border:2px dashed rgba(255,255,255,.2);box-shadow:none;cursor:default}
+.stone.ok{background:linear-gradient(145deg,#b6f5b6,#3fbf6a);border-color:#b6f5b6;box-shadow:0 0 12px rgba(123,224,123,.5)}
+
+/* memory */
+.mem{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:min(88vw,340px)}
+.mcard{aspect-ratio:3/4;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:clamp(28px,9vw,40px);cursor:pointer;
+  background:repeating-linear-gradient(45deg,#3a2f7a,#3a2f7a 8px,#2a2858 8px,#2a2858 16px);border:2px solid rgba(255,255,255,.3);color:transparent;transition:transform .25s}
+.mcard.up{background:#fff3d6;border-color:#ffd23f;color:var(--c,#b8325f)}
+.mcard.done{background:#d8f5d8;border-color:#7be07b;color:var(--c,#2a7a3a);cursor:default}
+
+/* crystals */
+.crys{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:min(70vw,280px)}
+.crystal{aspect-ratio:1;border-radius:26%;display:flex;align-items:center;justify-content:center;font-size:44px;color:rgba(0,0,0,.35);cursor:pointer;opacity:.4;transition:opacity .15s,box-shadow .15s}
+.crystal.lit{opacity:1;box-shadow:0 0 30px 6px var(--c)}
+.status{margin:0 0 16px;font-size:18px;min-height:1.4em;text-align:center}
+
+/* mana pipes */
+.pipes{display:grid;width:min(94vw,420px);gap:4px}
+.pcell{aspect-ratio:1;border-radius:10px;background:rgba(255,255,255,.07);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pcell{color:#6e6aa8}
+.pcell.lit{color:#ffd23f}
+.pcell svg{width:100%;height:100%;transition:transform .2s}
+.pcell path{stroke:#6e6aa8;stroke-width:22;fill:none;stroke-linecap:butt}
+.pcell.lit path{stroke:#ffd23f}
+.pcell.lit{background:rgba(255,210,63,.12)}
+.pend{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:30px;color:#6e6aa8;transition:color .3s,text-shadow .3s}
+.pend.lit{color:#ffd23f;text-shadow:0 0 14px #ffb000}
+
 /* cards */
 #card{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,8,30,.6);opacity:0;pointer-events:none;transition:opacity .5s;z-index:5}
 #card.show{opacity:1;pointer-events:auto}
@@ -152,19 +184,34 @@ const KEY=`<svg viewBox="0 0 200 120" role="img" aria-label="Golden key">
 <path d="M84 60H186M150 60v26M174 60v20" stroke="#ffd23f" stroke-width="14" stroke-linecap="round" fill="none"/>
 </svg>`;
 
+let epoch=0,run=[];
+const store={
+  get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+};
+function startRun(){
+  /* three different trials per run, avoiding the ones used last time */
+  const last=store.get('wt_types',[]);
+  const ids=shuffle(TYPES.map((_,i)=>i));
+  ids.sort((a,b)=>(last.includes(a)?1:0)-(last.includes(b)?1:0));
+  const pick=ids.slice(0,3);
+  store.set('wt_types',pick);
+  run=pick.map(i=>TYPES[i]);
+  startLevel(0);
+}
 function startLevel(n){
-  level=n;keyHandler=null;stage.textContent='';ctrl.textContent='';
+  level=n;epoch++;keyHandler=null;stage.textContent='';ctrl.textContent='';
   pips.forEach((p,i)=>p.className='pip'+(i<n?' done':i===n?' now':''));
-  const L=LEVELS[n];titleEl.textContent=L.title;subEl.textContent=L.sub;L.start();
+  const T=run[n];titleEl.textContent=`Trial ${n+1}: ${T.name}`;subEl.textContent=T.sub;T.start();
 }
 function complete(){
   keyHandler=null;pips[level].className='pip done';
   if(level<2){
     sfx.good();
-    showCard({svg:KEY,head:`Trial ${level+1} passed!`,text:level===0?'The cellar door swings open. Up the stairs you go!':'The lock clicks and the rune door slides away. One trial left!',btn:'Next trial',fn:()=>startLevel(level+1)});
+    showCard({svg:KEY,head:`Trial ${level+1} passed!`,text:level===0?'A secret door swings open. Up the stairs you go!':'The magic hums louder. One trial left!',btn:'Next trial',fn:()=>startLevel(level+1)});
   }else{
     sfx.win();confetti();
-    showCard({svg:HAT,head:'You did it!',text:'The Tower is free and the golden hat is yours. You are a Master Wizard!',btn:'Play again',fn:()=>startLevel(0)});
+    showCard({svg:HAT,head:'You did it!',text:'The Tower is free and the golden hat is yours. You are a Master Wizard!',btn:'Play again',fn:startRun});
   }
 }
 function btn(label,fn){const b=h('button','',label);b.onclick=fn;ctrl.appendChild(b);return b;}
@@ -279,8 +326,36 @@ function runes(){
 const RIDDLES=[
   {q:'I have scales and wings, I breathe fire, and I sleep on a pile of gold. What am I?',a:'DRAGON'},
   {q:'I have a mouth but never speak, and a bed but never sleep. What am I?',a:'RIVER'},
-  {q:'The more of me there is, the less you can see. What am I?',a:'DARKNESS'}
+  {q:'The more of me there is, the less you can see. What am I?',a:'DARKNESS'},
+  {q:'I am tall in the morning, short at noon, and long again at night. I stay glued to your feet. What am I?',a:'SHADOW'},
+  {q:'I speak without a mouth and hear without ears. I only answer when you call. What am I?',a:'ECHO'},
+  {q:'I am tall when I am young and short when I am old. I give light, and a puff of breath can end me. What am I?',a:'CANDLE'},
+  {q:'I have no voice, but I copy your face and every move you make. What am I?',a:'MIRROR'},
+  {q:'I am smooth and white with no door or window, but a golden treasure hides inside me. What am I?',a:'EGG'},
+  {q:'I fall from the sky in winter, I am soft and white, and I melt in your hand. What am I?',a:'SNOW'},
+  {q:'I have towns and rivers but no people and no water. What am I?',a:'MAP'},
+  {q:'I am small and made of metal. I have teeth but I cannot bite. I open doors. What am I?',a:'KEY'},
+  {q:'I have a spine but no bones, and pages but no wings. Wizards keep their spells in me. What am I?',a:'BOOK'},
+  {q:'I twinkle high above at night, and wizards make wishes on me. What am I?',a:'STAR'},
+  {q:'I change my shape every night, from a thin curve to a big round face, and I light up the dark. What am I?',a:'MOON'},
+  {q:'I am not alive, but I grow. I have no lungs, but I need air. Water is my enemy. What am I?',a:'FIRE'},
+  {q:'You cannot see me, but you can see what I do. I make leaves dance and fill the sails of ships. What am I?',a:'WIND'},
+  {q:'I appear after the rain with seven colours, and nobody has ever reached my end. What am I?',a:'RAINBOW'},
+  {q:'A king wears me on his head. I am made of gold and shiny jewels. What am I?',a:'CROWN'},
+  {q:'I have a trunk but I am not an elephant, and leaves but I am not a book. Birds make their homes in me. What am I?',a:'TREE'},
+  {q:'I am a see-through spirit who haunts old castles and floats through walls. What am I?',a:'GHOST'},
+  {q:'I have hands but cannot clap, and a face but cannot smile. What am I?',a:'CLOCK'},
+  {q:'I help you cross a river without getting wet, and I stand strong without any legs. What am I?',a:'BRIDGE'}
 ];
+function pickRiddles(){
+  /* three riddles per run, avoiding ones seen recently */
+  let seen=store.get('wt_seen',[]);
+  let fresh=RIDDLES.filter(r=>!seen.includes(r.a));
+  if(fresh.length<3){seen=[];fresh=RIDDLES.slice();}
+  const pick=shuffle(fresh).slice(0,3);
+  store.set('wt_seen',seen.concat(pick.map(r=>r.a)));
+  return pick;
+}
 const DOOR=`<svg id="door" viewBox="0 0 120 124" role="img" aria-label="Magic door">
 <defs><radialGradient id="gl"><stop offset="0" stop-color="#fff3b0"/><stop offset="1" stop-color="#ff9a3c"/></radialGradient>
 <clipPath id="arch"><path d="M24 118V54a36 36 0 0 1 72 0v64z"/></clipPath></defs>
@@ -293,20 +368,21 @@ const DOOR=`<svg id="door" viewBox="0 0 120 124" role="img" aria-label="Magic do
 <g stroke="#2d1a0a" stroke-width="1.5"><circle id="g0" cx="42" cy="46" r="6" fill="#444"/><circle id="g1" cx="60" cy="38" r="6" fill="#444"/><circle id="g2" cx="78" cy="46" r="6" fill="#444"/></g>
 </svg>`;
 function riddles(){
+  const set=pickRiddles();
   let r=0,slots,tiles,busy=false;
   const holder=h('div');holder.innerHTML=DOOR;stage.appendChild(holder);
   const door=holder.firstChild;
   const q=h('p','riddle'),sl=h('div','slots'),tl=h('div','tiles');
   stage.append(q,sl,tl);
   function load(){
-    const a=RIDDLES[r].a;
+    const a=set[r].a;
     slots=Array(a.length).fill(null);
     const extras=shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter(c=>!a.includes(c))).slice(0,3);
     tiles=shuffle([...a.split(''),...extras]).map((ch,id)=>({ch,id,used:false}));
     draw();
   }
   function draw(){
-    q.innerHTML='';q.append(h('small','',`Riddle ${r+1} of 3`),RIDDLES[r].q);
+    q.innerHTML='';q.append(h('small','',`Riddle ${r+1} of 3`),set[r].q);
     sl.textContent='';tl.textContent='';
     slots.forEach((s,p)=>{
       const d=h('div','slot'+(s&&s.locked?' locked':'')+(s&&s.ok?' ok':''),s?tiles[s.id].ch:'');
@@ -331,7 +407,7 @@ function riddles(){
     tiles[s.id].used=false;slots[p]=null;sfx.tap();draw();
   }
   function check(){
-    const a=RIDDLES[r].a;
+    const a=set[r].a;
     busy=true;
     if(slots.map(s=>tiles[s.id].ch).join('')===a){
       sfx.good();slots.forEach(s=>s.ok=true);draw();
@@ -351,7 +427,7 @@ function riddles(){
   }
   function hintFn(){
     if(busy)return;
-    const a=RIDDLES[r].a;
+    const a=set[r].a;
     const p=slots.findIndex((s,i)=>!s||tiles[s.id].ch!==a[i]);
     if(p<0)return;
     if(slots[p]){tiles[slots[p].id].used=false;slots[p]=null;}
@@ -376,14 +452,213 @@ function riddles(){
   load();
 }
 
-/* ---------- levels ---------- */
-const LEVELS=[
-  {title:'Trial 1: The Potion Cellar',sub:'Sort the potions so every flask holds just one colour. Tap a flask, then tap where to pour.',start:potions},
-  {title:'Trial 2: The Rune Lock',sub:'Tap a rune to flip it and the runes next to it. Make every rune glow to open the lock.',start:runes},
-  {title:'Trial 3: The Riddle Gate',sub:'Answer the three riddles with the letter stones to break the seals.',start:riddles}
+/* ---------- slide puzzle ---------- */
+function slide(){
+  const N=3,gapAt=N*N-1;
+  let b=[...Array(N*N).keys()].map(i=>i+1);b[gapAt]=0;
+  let g=gapAt,prev=-1;
+  for(let k=0;k<80;k++){
+    const x=g%N,y=(g/N)|0,opts=[];
+    if(x>0)opts.push(g-1);if(x<N-1)opts.push(g+1);if(y>0)opts.push(g-N);if(y<N-1)opts.push(g+N);
+    const o=opts.filter(i=>i!==prev),n=o[rnd(o.length)];
+    b[g]=b[n];b[n]=0;prev=g;g=n;
+  }
+  if(b.every((v,i)=>v===(i+1)%(N*N)))return slide();
+  let over=false;
+  const grid=h('div','slide');stage.appendChild(grid);
+  function draw(){
+    grid.textContent='';
+    b.forEach((v,i)=>{
+      const d=h('div','stone'+(v?'':' gap')+(v&&v===i+1?' ok':''),v||'');
+      d.onclick=()=>tap(i);grid.appendChild(d);
+    });
+  }
+  function tap(i){
+    if(over)return;
+    const e=b.indexOf(0),x=i%N,y=(i/N)|0,ex=e%N,ey=(e/N)|0;
+    if(i===e||(x!==ex&&y!==ey)){sfx.bad();return;}
+    const step=x===ex?(y<ey?N:-N):(x<ex?1:-1);
+    for(let c=e;c!==i;c-=step)b[c]=b[c-step];
+    b[i]=0;sfx.pour();draw();
+    if(b.every((v,k)=>v===(k+1)%(N*N))){over=true;setTimeout(complete,700);}
+  }
+  draw();
+}
+
+/* ---------- memory match ---------- */
+function memory(){
+  const SYM=['★','☾','☀','♦','♣','♠','♥','✿','♫','✦'],COL=['#b8325f','#3e6fd8','#c77a00','#2a7a3a','#7a3fb8','#c4382f'];
+  const pick=shuffle(SYM.slice()).slice(0,6);
+  const cards=shuffle(pick.concat(pick).map((s,i)=>({s,c:COL[pick.indexOf(s)%COL.length],st:0})));
+  let first=-1,lock=false,found=0;
+  const grid=h('div','mem');stage.appendChild(grid);
+  function draw(){
+    grid.textContent='';
+    cards.forEach((c,i)=>{
+      const d=h('div','mcard'+(c.st===1?' up':c.st===2?' done':''),c.s);
+      d.style.setProperty('--c',c.c);d.onclick=()=>tap(i);grid.appendChild(d);
+    });
+  }
+  function tap(i){
+    if(lock||cards[i].st)return;
+    cards[i].st=1;sfx.tap();
+    if(first<0){first=i;draw();return;}
+    const a=first;first=-1;draw();
+    if(cards[a].s===cards[i].s){
+      cards[a].st=cards[i].st=2;found++;sfx.good();
+      setTimeout(draw,350);
+      if(found===6)setTimeout(complete,900);
+    }else{
+      lock=true;
+      setTimeout(()=>{cards[a].st=cards[i].st=0;lock=false;draw();},800);
+    }
+  }
+  draw();
+}
+
+/* ---------- crystal choir (Simon) ---------- */
+function crystals(){
+  const ep=epoch,C=['#e5484d','#3e8ef7','#3fbf6a','#f5c542'],G=['●','▲','■','★'],F=[262,330,392,523],LEN=5;
+  const seq=Array.from({length:LEN},()=>rnd(4));
+  let round=1,pos=0,input=false,over=false;
+  const st=h('p','status'),grid=h('div','crys');stage.append(st,grid);
+  const el=C.map((c,k)=>{
+    const d=h('div','crystal',G[k]);d.style.background=c;d.style.setProperty('--c',c);
+    d.onclick=()=>press(k);grid.appendChild(d);return d;
+  });
+  const say=t=>{st.textContent=t;};
+  function flash(k){
+    el[k].classList.add('lit');tone(F[k],.4,'sine',0,.12);
+    setTimeout(()=>el[k].classList.remove('lit'),400);
+  }
+  function play(){
+    if(ep!==epoch||over)return;
+    input=false;say(`Round ${round} of ${LEN}: watch the crystals…`);
+    let i=0;
+    const step=()=>{
+      if(ep!==epoch||over)return;
+      if(i>=round){input=true;pos=0;say('Your turn! Copy the song.');return;}
+      flash(seq[i++]);setTimeout(step,700);
+    };
+    setTimeout(step,800);
+  }
+  function press(k){
+    if(!input||over)return;
+    flash(k);
+    if(k!==seq[pos]){input=false;sfx.bad();say('Oops! Watch again…');setTimeout(play,1200);return;}
+    if(++pos===round){
+      input=false;
+      if(round===LEN){over=true;say('Perfect!');setTimeout(complete,700);}
+      else{round++;say('Well done!');setTimeout(play,1000);}
+    }
+  }
+  btn('Hear it again',()=>{if(input&&!over)play();});
+  play();
+}
+
+/* ---------- mana pipes ---------- */
+function pipes(){
+  const W=4,H=4,N=1,E=2,S=4,WS=8;
+  const D=[[0,-1,N],[1,0,E],[0,1,S],[-1,0,WS]];
+  const opp=m=>((m<<2)|(m>>2))&15,rot=m=>((m<<1)|(m>>3))&15;
+  let mask,r0,r1;
+  function gen(){
+    for(;;){
+      r0=rnd(H);r1=rnd(H);
+      const path=[[0,r0]],seen=new Set([r0*W]);
+      const dfs=(x,y)=>{
+        if(x===W-1&&y===r1)return true;
+        for(const [dx,dy] of shuffle(D.slice())){
+          const nx=x+dx,ny=y+dy,k=ny*W+nx;
+          if(nx<0||nx>=W||ny<0||ny>=H||seen.has(k))continue;
+          seen.add(k);path.push([nx,ny]);
+          if(dfs(nx,ny))return true;
+          path.pop();seen.delete(k);
+        }
+        return false;
+      };
+      if(!dfs(0,r0)||path.length<7)continue;
+      const m=Array(W*H).fill(0);
+      for(let i=0;i<m.length;i++)m[i]=[5,10,3,6,12,9,3,6,12,9][rnd(10)];
+      path.forEach(([x,y],i)=>{
+        const dir=(a,b)=>D.find(d=>d[0]===b[0]-a[0]&&d[1]===b[1]-a[1])[2];
+        let v=0;
+        v|=i===0?WS:dir([x,y],path[i-1]);
+        v|=i===path.length-1?E:dir([x,y],path[i+1]);
+        m[y*W+x]=v;
+      });
+      for(let i=0;i<m.length;i++)for(let k=rnd(4);k>0;k--)m[i]=rot(m[i]);
+      mask=m;
+      if(!reach().ok)return;
+    }
+  }
+  function reach(){
+    const lit=new Set(),s0=r0*W;
+    if(!(mask[s0]&WS))return{lit,ok:false};
+    const st=[s0];lit.add(s0);
+    while(st.length){
+      const c=st.pop(),x=c%W,y=(c/W)|0;
+      for(const [dx,dy,bit] of D){
+        const nx=x+dx,ny=y+dy,n=ny*W+nx;
+        if(nx<0||nx>=W||ny<0||ny>=H||lit.has(n))continue;
+        if((mask[c]&bit)&&(mask[n]&opp(bit))){lit.add(n);st.push(n);}
+      }
+    }
+    const gl=r1*W+W-1;
+    return{lit,ok:lit.has(gl)&&!!(mask[gl]&E)};
+  }
+  gen();
+  const wrap=h('div','pipes');wrap.style.gridTemplateColumns=`repeat(${W+2},1fr)`;stage.appendChild(wrap);
+  const cells=[],ends=[];
+  function pathFor(m){
+    let d='';
+    if(m&N)d+='M50 50V0';if(m&E)d+='M50 50H100';if(m&S)d+='M50 50V100';if(m&WS)d+='M50 50H0';
+    return d;
+  }
+  for(let y=0;y<H;y++){
+    for(let x=-1;x<=W;x++){
+      if(x===-1||x===W){
+        const isSrc=x===-1&&y===r0,isGoal=x===W&&y===r1;
+        const d=h('div','pend',isSrc?'★':isGoal?'◆':'');
+        wrap.appendChild(d);
+        if(isSrc)ends[0]=d;if(isGoal)ends[1]=d;
+        continue;
+      }
+      const i=y*W+x,d=h('div','pcell');
+      d.innerHTML=`<svg viewBox="0 0 100 100"><path d="${pathFor(mask[i])}"/><circle cx="50" cy="50" r="11" fill="currentColor" stroke="none"/></svg>`;
+      d.onclick=()=>tap(i);wrap.appendChild(d);cells[i]={d,rot:0};
+    }
+  }
+  let over=false;
+  function paint(){
+    const r=reach();
+    cells.forEach((c,i)=>c.d.classList.toggle('lit',r.lit.has(i)));
+    ends[0].classList.add('lit');
+    ends[1].classList.toggle('lit',r.ok);
+    return r.ok;
+  }
+  function tap(i){
+    if(over)return;
+    mask[i]=rot(mask[i]);cells[i].rot+=90;
+    cells[i].d.firstChild.style.transform=`rotate(${cells[i].rot}deg)`;
+    sfx.tap();
+    if(paint()){over=true;setTimeout(complete,900);}
+  }
+  paint();
+}
+
+/* ---------- trials ---------- */
+const TYPES=[
+  {name:'The Potion Cellar',sub:'Sort the potions so every flask holds just one colour. Tap a flask, then tap where to pour.',start:potions},
+  {name:'The Rune Lock',sub:'Tap a rune to flip it and the runes next to it. Make every rune glow to open the lock.',start:runes},
+  {name:'The Riddle Gate',sub:'Answer the three riddles with the letter stones to break the seals.',start:riddles},
+  {name:'The Shifting Stones',sub:'Slide the stones into order, 1 to 8, with the gap in the bottom-right corner. Tap a stone next to the gap.',start:slide},
+  {name:'The Memory Mirrors',sub:'Flip two cards at a time and find all six matching pairs.',start:memory},
+  {name:'The Crystal Choir',sub:'Watch the crystals sing, then copy the song. It gets longer every round!',start:crystals},
+  {name:'The Mana Pipes',sub:'Tap the pipes to turn them and carry the magic from the star to the diamond.',start:pipes}
 ];
 
-showCard({svg:HAT,head:"The Wizard's Tower",text:'The old wizard has vanished and his Tower is sealed by three magical trials. Solve them all to reach the top!',btn:'Begin',fn:()=>startLevel(0)});
+showCard({svg:HAT,head:"The Wizard's Tower",text:'The old wizard has vanished and his Tower is sealed by three magical trials. Solve them all to reach the top!',btn:'Begin',fn:startRun});
 })();
 </script>
 </body>
